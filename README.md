@@ -3,6 +3,8 @@
 
 # README
 
+**Note: This is mTCP patched version for BlueField-2 DPU with MLNX_DPDK 20.11. Please refer to [CHANGES.md](./CHANGES.md) to examine patches.**
+
 mTCP is a highly scalable user-level TCP stack for multicore systems. 
 mTCP source code is distributed under the Modified BSD License. For 
 more detail, please refer to the LICENSE. The license term of io_engine 
@@ -87,6 +89,8 @@ config: sample mTCP configuration files (may not be necessary)
 
 
 ## Install guides
+
+**[Important]** This section is no longer applicable due to the MLX5-specific split driver model and changes in the newer DPDK API. See [CHANGES.md](./CHANGES.md).
 
 mTCP can be prepared in four ways.
 

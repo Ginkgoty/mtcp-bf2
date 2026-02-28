@@ -294,9 +294,9 @@ dpdk_init_handle(struct mtcp_thread_context *ctxt)
 #ifdef ENABLE_STATS_IOCTL
 	dpc->fd = open(DEV_PATH, O_RDWR);
 	if (dpc->fd == -1) {
-		TRACE_ERROR("Can't open " DEV_PATH " for context->cpu: %d! "
-			    "Are you using mlx4/mlx5 driver?\n",
-			    ctxt->cpu);
+		TRACE_INFO("Can't open " DEV_PATH " for context->cpu: %d. "
+			   "This is normal for mlx4/mlx5 bifurcated drivers.\n",
+			   ctxt->cpu);
 	}
 #endif /* !ENABLE_STATS_IOCTL */
 }
@@ -734,7 +734,12 @@ dpdk_load_module(void)
 			/* init port */
 			printf("Initializing port %u... ", (unsigned) portid);
 			fflush(stdout);
-			if (!strncmp(dev_info[portid].driver_name, "net_mlx", 7))
+			/* Mellanox/mlx5 NIC uses 40-byte RSS key (Intel uses 52) */
+			/* DPDK < 20.11: driver_name = "net_mlx5"                */
+			/* DPDK >= 20.11 (MLNX_DPDK): driver_name = "mlx5_pci"  */
+			if (!strncmp(dev_info[portid].driver_name, "net_mlx", 7) ||
+			    !strncmp(dev_info[portid].driver_name, "mlx5_", 5) ||
+			    !strncmp(dev_info[portid].driver_name, "mlx4_", 5))
 				port_conf.rx_adv_conf.rss_conf.rss_key_len = 40;
 			
 			ret = rte_eth_dev_configure(portid, CONFIG.num_cores, CONFIG.num_cores, &port_conf);

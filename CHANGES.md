@@ -33,9 +33,10 @@ sudo apt-get install -y autoconf automake libtool
 
 ## Usage
 
+0. **Set Hugepages**: 
 1. **Assign an IP to the SF interface**: `sudo ip addr add <IP>/<MASK> dev enp3s0f0s0`
 2. **Edit configuration files**: fill in the peer information in `arp.conf` and `route.conf`
-3. **Run**: `cd apps/example && sudo ./epserver -f epserver-sf.conf`
+3. **Run**: `cd apps/example && sudo ./epserver -f epserver-sf.conf -p www 2>&1`
 
 **Key Notes**:
 

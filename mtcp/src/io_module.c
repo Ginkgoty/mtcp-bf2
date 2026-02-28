@@ -21,6 +21,8 @@
 #include <math.h>
 /* for retrieving rte version(s) */
 #include <rte_version.h>
+/* for rte_eal_process_type */
+#include <rte_eal.h>
 #endif /* DISABLE_DPDK */
 /* for TRACE_* */
 #include "debug.h"
@@ -48,7 +50,6 @@
 /*----------------------------------------------------------------------------*/
 io_module_func *current_iomodule_func = &dpdk_module_func;
 #ifndef DISABLE_DPDK
-enum rte_proc_type_t eal_proc_type_detect(void);
 /**
  * DPDK's RTE consumes some huge pages for internal bookkeeping.
  * Therefore, it is not always safe to reserve the exact amount
@@ -128,7 +129,7 @@ probe_all_rte_devices(char **argv, int *argc, char *dev_name_list)
 					  "interface?\n", dev_token);
 				goto loop_over;
 			}
-			argv[*argc] = strdup("-w");
+			argv[*argc] = strdup("-a");
 			argv[*argc + 1] = calloc(PCI_LENGTH, 1);
 			if (argv[*argc] == NULL ||
 			    argv[*argc + 1] == NULL) {
@@ -147,8 +148,16 @@ probe_all_rte_devices(char **argv, int *argc, char *dev_name_list)
 		close(fd);
 		free(dev_tokenizer);
 	} else {
-		TRACE_ERROR("Error opening dpdk-face!\n");
-		exit(EXIT_FAILURE);
+		/*
+		 * dpdk-iface kernel module is not loaded.
+		 * This is expected for Mellanox/mlx5 bifurcated drivers
+		 * (including BlueField DPU SFs). Skip PCI probe and let
+		 * EAL auto-discover all available ports.
+		 */
+		TRACE_INFO("dpdk-iface not available (%s). "
+			   "Using EAL auto-probe (mlx5 bifurcated mode).\n",
+			   DEV_PATH);
+		free(dev_tokenizer);
 	}
 
 	/* add the terminating "" sequence */
@@ -458,7 +467,7 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 		}
 #endif
 		/* check if process is primary or secondary */
-		CONFIG.multi_process_is_master = (eal_proc_type_detect() == RTE_PROC_PRIMARY) ?
+		CONFIG.multi_process_is_master = (rte_eal_process_type() == RTE_PROC_PRIMARY) ?
 			1 : 0;
 		
 #endif /* !DISABLE_DPDK */

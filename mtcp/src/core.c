@@ -37,6 +37,8 @@
 /* for launching rte thread */
 #include <rte_launch.h>
 #include <rte_lcore.h>
+/* for retrieving rte version(s) */
+#include <rte_version.h>
 #endif
 
 #ifdef ENABLE_ONVM
@@ -1326,11 +1328,13 @@ mtcp_create_context(int cpu)
 	/* Wake up mTCP threads (wake up I/O threads) */
 	if (current_iomodule_func == &dpdk_module_func) {
 		int master;
+#if RTE_VERSION >= RTE_VERSION_NUM(20, 11, 0, 0)
+		master = rte_get_main_lcore();
+#else
 		master = rte_get_master_lcore();
+#endif
 		
 		if (master == whichCoreID(cpu)) {
-			lcore_config[master].ret = 0;
-			lcore_config[master].state = FINISHED;
 			
 			if (pthread_create(&g_thread[cpu], 
 					   NULL, MTCPRunThread, (void *)mctx) != 0) {
@@ -1646,7 +1650,11 @@ mtcp_destroy()
 {
 	int i;
 #ifndef DISABLE_DPDK
+#if RTE_VERSION >= RTE_VERSION_NUM(20, 11, 0, 0)
+	int master = rte_get_main_lcore();
+#else
 	int master = rte_get_master_lcore();
+#endif
 #endif
 	/* wait until all threads are closed */
 	for (i = 0; i < num_cpus; i++) {

@@ -98,8 +98,17 @@ INC += -I$(PS_DIR)/include
 
 # CFLAGS for DPDK-related compilation
 ifeq ($(DPDK), 1)
+# Use pkg-config for DPDK >= 20.11 (meson build)
+DPDK_CFLAGS := $(shell pkg-config --cflags libdpdk 2>/dev/null)
+DPDK_LDFLAGS := $(shell pkg-config --libs libdpdk 2>/dev/null)
+ifneq ($(DPDK_CFLAGS),)
+CFLAGS += $(DPDK_CFLAGS) @CFLAGS@
+LDFLAGS += $(DPDK_LDFLAGS)
+else
+# Fallback: try legacy rte.vars.mk (DPDK < 20.11)
 include $(RTE_SDK)/mk/rte.vars.mk
 CFLAGS+=@CFLAGS@
+endif
 ifeq ($(ENFORCE_RX_IDLE), 1)
 INC += -DENFORCE_RX_IDLE -DRX_IDLE_THRESH=@RX_IDLE_THRESH@
 endif

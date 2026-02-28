@@ -102,7 +102,11 @@ static struct rte_mempool *pktmbuf_pool[MAX_CPUS] = {NULL};
 //#define DEBUG				1
 #ifdef DEBUG
 /* ethernet addresses of ports */
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 static struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
+#else
+static struct rte_ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
+#endif
 #endif
 
 static struct rte_eth_dev_info dev_info[RTE_MAX_ETHPORTS];
@@ -420,7 +424,11 @@ dpdk_get_wptr(struct mtcp_thread_context *ctxt, int ifidx, uint16_t pktsize)
 	m = dpc->wmbufs[ifidx].m_table[len_of_mbuf];
 
 	/* retrieve the right write offset */
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 	ptr = (void *)rte_pktmbuf_mtod(m, struct ether_hdr *);
+#else
+	ptr = (void *)rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
+#endif
 	m->pkt_len = m->data_len = pktsize;
 	m->nb_segs = 1;
 	m->next = NULL;
@@ -443,7 +451,8 @@ free_pkts(struct rte_mbuf **mtable, unsigned len)
 	/* free the freaking packets */
 	for (i = 0; i < len; i++) {
 		rte_pktmbuf_free(mtable[i]);
-		RTE_MBUF_PREFETCH_TO_FREE(mtable[i+1]);
+		if (i + 1 < (int)len)
+			rte_prefetch0(mtable[i+1]);
 	}
 }
 /*----------------------------------------------------------------------------*/
@@ -475,16 +484,27 @@ dpdk_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 struct rte_mbuf *
 ip_reassemble(struct dpdk_private_context *dpc, struct rte_mbuf *m)
 {
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 	struct ether_hdr *eth_hdr;
+#else
+	struct rte_ether_hdr *eth_hdr;
+#endif
 	struct rte_ip_frag_tbl *tbl;
 	struct rte_ip_frag_death_row *dr;
 
 	/* if packet is IPv4 */
 	if (RTE_ETH_IS_IPV4_HDR(m->packet_type)) {
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 		struct ipv4_hdr *ip_hdr;
 
 		eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
 		ip_hdr = (struct ipv4_hdr *)(eth_hdr + 1);
+#else
+		struct rte_ipv4_hdr *ip_hdr;
+
+		eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
+		ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
+#endif
 
 		/* if it is a fragmented packet, then try to reassemble. */
 		if (rte_ipv4_frag_pkt_is_fragmented(ip_hdr)) {
@@ -534,7 +554,11 @@ dpdk_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t *
 	dpc->rmbufs[ifidx].m_table[index] = m;
 
 	/* verify checksum values from ol_flags */
+#if RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 0)
+	if ((m->ol_flags & (RTE_MBUF_F_RX_L4_CKSUM_BAD | RTE_MBUF_F_RX_IP_CKSUM_BAD)) != 0) {
+#else
 	if ((m->ol_flags & (PKT_RX_L4_CKSUM_BAD | PKT_RX_IP_CKSUM_BAD)) != 0) {
+#endif
 		TRACE_ERROR("%s(%p, %d, %d): mbuf with invalid checksum: "
 			    "%p(%lu);\n",
 			    __func__, ctxt, ifidx, index, m, m->ol_flags);
@@ -857,12 +881,20 @@ dpdk_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 		m = dpc->cur_rx_m;
 		//if (m->next != NULL)
 		//	rte_prefetch0(rte_pktmbuf_mtod(m->next, void *));
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 		iph = rte_pktmbuf_mtod_offset(m, struct iphdr *, sizeof(struct ether_hdr));
+#else
+		iph = rte_pktmbuf_mtod_offset(m, struct iphdr *, sizeof(struct rte_ether_hdr));
+#endif
 		tcph = (struct tcphdr *)((u_char *)iph + (iph->ihl << 2));
 		payload = (uint8_t *)tcph + (tcph->doff << 2);
 
 		seg_off = m->data_len -
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 			sizeof(struct ether_hdr) - (iph->ihl << 2) -
+#else
+			sizeof(struct rte_ether_hdr) - (iph->ihl << 2) -
+#endif
 			(tcph->doff << 2);
 
 		to = (uint8_t *) argp;

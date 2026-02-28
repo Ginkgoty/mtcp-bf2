@@ -79,8 +79,8 @@ AC_SUBST(NETMAP, 0)
 # Reset HWCSUM to 1
 AC_SUBST(HWCSUM, 1)
 
-# Check dpdk-17.08 path (lib & inc)
-AC_ARG_WITH(stuff, [  --with-dpdk-lib      path to the dpdk-17.08 install root])
+# Check dpdk path (lib & inc) - supports both legacy make-based and meson-based DPDK
+AC_ARG_WITH(stuff, [  --with-dpdk-lib      path to the dpdk install root])
 if test "$with_dpdk_lib" != ""
 then
         AC_SUBST(DPDKLIBPATH, $with_dpdk_lib)

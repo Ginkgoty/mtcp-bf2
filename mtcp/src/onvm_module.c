@@ -160,7 +160,7 @@ onvm_init_handle(struct mtcp_thread_context *ctxt)
 	dpc->fd = open("/dev/dpdk-iface", O_RDWR);
 	if (dpc->fd == -1) {
 		TRACE_ERROR("Can't open /dev/dpdk-iface for context->cpu: %d! "
-			    "Are you using mlx4/mlx5 driver?\n",
+			    "It's normal for mlx4/mlx5 driver.\n",
 			    ctxt->cpu);
 	}
 #endif /* !ENABLE_STATS_IOCTL */

@@ -784,17 +784,27 @@ dpdk_load_module(void)
 			rte_eth_promiscuous_enable(portid);
 
                         /* retrieve current flow control settings per port */
-			memset(&fc_conf, 0, sizeof(fc_conf));
-                        ret = rte_eth_dev_flow_ctrl_get(portid, &fc_conf);
-			if (ret != 0)
-                                TRACE_INFO("Failed to get flow control info!\n");
+			/* mlx5/mlx4 bifurcated drivers do not support
+			 * ETHTOOL_SPAUSEPARAM — skip flow-control config
+			 * to avoid noisy "Operation not supported" warnings. */
+			if (strncmp(dev_info[portid].driver_name, "net_mlx", 7) &&
+			    strncmp(dev_info[portid].driver_name, "mlx5_", 5) &&
+			    strncmp(dev_info[portid].driver_name, "mlx4_", 5)) {
+				memset(&fc_conf, 0, sizeof(fc_conf));
+				ret = rte_eth_dev_flow_ctrl_get(portid, &fc_conf);
+				if (ret != 0)
+					TRACE_INFO("Failed to get flow control info!\n");
 
-			/* and just disable the rx/tx flow control */
-			fc_conf.mode = RTE_FC_NONE;
-			ret = rte_eth_dev_flow_ctrl_set(portid, &fc_conf);
-                        if (ret != 0)
-                                TRACE_INFO("Failed to set flow control info!: errno: %d\n",
-                                         ret);
+				/* and just disable the rx/tx flow control */
+				fc_conf.mode = RTE_FC_NONE;
+				ret = rte_eth_dev_flow_ctrl_set(portid, &fc_conf);
+				if (ret != 0)
+					TRACE_INFO("Failed to set flow control info!: errno: %d\n",
+						 ret);
+			} else {
+				TRACE_INFO("Port %u: %s driver — skipping flow control config (not supported)\n",
+					 (unsigned)portid, dev_info[portid].driver_name);
+			}
 
 #ifdef DEBUG
 			printf("Port %u, MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n\n",
